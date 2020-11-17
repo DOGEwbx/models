@@ -385,14 +385,15 @@ def train_and_eval(
 
     
   steps = 0
-  max_step = os.getenv("MINI_BATCH_NUM")
-  sleep_time = os.getenv("SLEEP_TIME")
+  max_step = int(os.getenv("MINI_BATCH_NUM"))
+  sleep_time = float(os.getenv("SLEEP_TIME"))
   print("training start!")
   while True:
     print("epoch started")
     ds_iter = iter(train_dataset)
     for i, _ in enumerate(ds_iter):
       print(f"get a batch, sleep for {sleep_time}")
+      time.sleep(sleep_time)
       steps += 1
       if steps >=max_step:
         print("finished!")
