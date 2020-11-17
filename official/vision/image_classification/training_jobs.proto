@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package dare;
+
+message JobHeartbeatRequest {
+    string job_name = 1;
+    double batch_time = 2;
+}
+
+message JobFinishRequest {
+    string job_name = 1;
+}
+
+message HeartbeatReply {
+    string reply = 1;
+}
+
+service JobHeartbeat {
+    rpc Heartbeat(JobHeartbeatRequest) returns (HeartbeatReply) {};
+    rpc JobFinish(JobFinishRequest) returns (HeartbeatReply) {};
+}
+
+message JobStartRequest {
+  string model = 1;
+  string dataset = 2;
+  string name = 3;
+  int32 num_workers = 4;
+  int32 num_gpus_per_worker = 5;
+  string job_ip = 6;
+  string dataset_path = 7;
+  int64 steps_curr_epoch = 8;
+  int64 steps_future_epochs = 9;
+}
+
+message NewEpochRequest {
+  string name = 1;
+  int64 steps_curr_epoch = 2;
+  int64 steps_future_epochs = 3;
+}
+
+message JobStatusReply {
+  string reply = 1;
+}
+
+// This service runs on DARE allocator and is called by training jobs
+service JobStatusHandler {
+  rpc JobStart(JobStartRequest) returns (JobStatusReply) {};
+  rpc NewEpoch(NewEpochRequest) returns (JobStatusReply) {};
+}
