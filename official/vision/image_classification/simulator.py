@@ -244,7 +244,7 @@ def initialize(params: base_configs.ExperimentConfig,
       keras_utils.set_gpu_thread_mode_and_count(
           per_gpu_thread_count=params.runtime.per_gpu_thread_count,
           gpu_thread_mode=params.runtime.gpu_thread_mode,
-          num_gpus=params.runtime.num_gpus,
+          num_gpus=int(os.getenv("NUM_GPU")),
           datasets_num_private_threads=params.runtime.dataset_num_private_threads)  # pylint:disable=line-too-long
     if params.runtime.batchnorm_spatial_persistent:
       os.environ['TF_USE_CUDNN_BATCHNORM_SPATIAL_PERSISTENT'] = '1'
@@ -302,7 +302,7 @@ def train_and_eval(
   strategy = strategy_override or distribution_utils.get_distribution_strategy(
       distribution_strategy=params.runtime.distribution_strategy,
       all_reduce_alg=params.runtime.all_reduce_alg,
-      num_gpus=params.runtime.num_gpus,
+      num_gpus=int(os.getenv("NUM_GPU")),
       tpu_address=params.runtime.tpu)
 
   strategy_scope = distribution_utils.get_strategy_scope(strategy)
