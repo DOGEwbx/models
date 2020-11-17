@@ -329,7 +329,7 @@ class DatasetBuilder:
     logging.info('Using TFDS to load data.')
 
     builder = tfds.builder(self.config.name,
-                           data_dir=self.config.data_dir)
+                           data_dir=self.config.data_dir, version="5.0.0")
 
     if self.config.download:
       builder.download_and_prepare()
