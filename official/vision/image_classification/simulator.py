@@ -18,6 +18,7 @@
 import os
 import pprint
 import time
+import grpc
 from typing import Any, Tuple, Text, Optional, Mapping
 
 from absl import app
@@ -33,11 +34,37 @@ from official.utils.misc import keras_utils
 from official.vision.image_classification import callbacks as custom_callbacks
 from official.vision.image_classification import dataset_factory
 from official.vision.image_classification import optimizer_factory
+from official.vision.image_classification import training_jobs_pb2_grpc
+from official.vision.image_classification import training_jobs_pb2
 from official.vision.image_classification.configs import base_configs
 from official.vision.image_classification.configs import configs
 from official.vision.image_classification.efficientnet import efficientnet_model
 from official.vision.image_classification.resnet import common
 from official.vision.image_classification.resnet import resnet_model
+
+class HeartBeatSender(object):
+    def __init__(self, batchsize, stub, name, max_interval = 60, max_step = 10):
+        self.batchsize=batchsize
+        self.name = name
+        self.current_step = 0
+        self.last_step = 0
+        self.last_time = time.time()
+        self.max_interval = max_interval
+        self.max_step = max_step
+        self.stub = stub
+
+    def update(self):
+        self.current_step += 1
+        interval = time.time() - self.last_time
+        steps = self.current_step - self.last_step
+        if interval > self.max_interval or steps >= self.max_step:
+            self.stub.Heartbeat(
+                training_jobs_pb2.JobHeartbeatRequest(job_name = self.name, batch_time = interval/steps)
+            )
+            self.last_step = self.current_step
+            self.last_time += interval
+
+
 
 
 def get_models() -> Mapping[str, tf.keras.Model]:
@@ -244,7 +271,7 @@ def initialize(params: base_configs.ExperimentConfig,
       keras_utils.set_gpu_thread_mode_and_count(
           per_gpu_thread_count=params.runtime.per_gpu_thread_count,
           gpu_thread_mode=params.runtime.gpu_thread_mode,
-          num_gpus=int(os.getenv("NUM_GPU")),
+          num_gpus=int(len(os.getenv("GPU_ID").split(','))),
           datasets_num_private_threads=params.runtime.dataset_num_private_threads)  # pylint:disable=line-too-long
     if params.runtime.batchnorm_spatial_persistent:
       os.environ['TF_USE_CUDNN_BATCHNORM_SPATIAL_PERSISTENT'] = '1'
@@ -293,7 +320,7 @@ def train_and_eval(
     strategy_override: tf.distribute.Strategy) -> Mapping[str, Any]:
   """Runs the train and eval path using compile/fit."""
   logging.info('Running train and eval.')
-
+  
   distribution_utils.configure_cluster(
       params.runtime.worker_hosts,
       params.runtime.task_index)
@@ -302,7 +329,7 @@ def train_and_eval(
   strategy = strategy_override or distribution_utils.get_distribution_strategy(
       distribution_strategy=params.runtime.distribution_strategy,
       all_reduce_alg=params.runtime.all_reduce_alg,
-      num_gpus=int(os.getenv("NUM_GPU")),
+      num_gpus=int(len(os.getenv("GPU_ID").split(','))),
       tpu_address=params.runtime.tpu)
 
   strategy_scope = distribution_utils.get_strategy_scope(strategy)
@@ -320,6 +347,31 @@ def train_and_eval(
   # Unpack datasets and builders based on train/val/test splits
   train_builder, validation_builder = builders  # pylint: disable=unbalanced-tuple-unpacking
   train_dataset, validation_dataset = datasets
+
+  max_step_single_epoch = len(train_dataset)
+  max_step = int(os.getenv("BATCH_NUM"))
+  num_gpu = int(len(os.getenv("GPU_ID").split(',')))
+
+  scheduler = grpc.insecure_channel(os.getenv("SCHD_IP") + 
+                ':' + os.getenv("SCHD_HB_PORT"))
+  allocator = grpc.insecure_channel(os.getenv("ALLOCATOR_IP") +
+                ":" + os.getenv("ALLOCATOR_PORT"))
+  heartbeat = training_jobs_pb2_grpc.JobHeartbeatStub(scheduler)
+  jobstatus = training_jobs_pb2_grpc.JobStatusHandlerStub(allocator)
+  jobstatus.JobStart(
+      training_jobs_pb2.JobStartRequest(
+          model = os.getenv("MODEL"),
+          dataset = os.getenv("DATASET"),
+          name = os.getenv("JOB_NAME"),
+          num_workers = 1,
+          num_gpus_per_worker = num_gpu,
+          job_ip = os.getenv("CONTAINER_IP"),
+          dataset_path = os.getenv("ALLUXIO_DATA_PATH"),
+          steps_curr_epoch = min(max_step_single_epoch,max_step),
+          steps_future_epochs = max_step,
+      )
+  )# job start grpc
+
 
   train_epochs = params.train.epochs
   train_steps = params.train.steps or train_builder.num_steps
@@ -383,27 +435,26 @@ def train_and_eval(
         'validation_steps': validation_steps,
         'validation_freq': params.evaluation.epochs_between_evals,
     }
-
-    
-  steps = 0
-  max_step = int(os.getenv("MINI_BATCH_NUM"))
   sleep_time = float(os.getenv("SLEEP_TIME"))
-  print("training start!")
+  myname = os.getenv("JOB_NAME")
+  sender = HeartBeatSender(256*num_gpu,stub = heartbeat, name = myname, max_step = 60/sleep_time + 1)
   while True:
-    print("epoch started")
     ds_iter = iter(train_dataset)
+    jobstatus.NewEpoch(training_jobs_pb2.NewEpochRequest(
+        name = myname,
+        steps_curr_epoch = min(max_step_single_epoch, max_step - steps),
+        steps_future_epochs = max_step - steps, 
+        )
+      )
     for i, _ in enumerate(ds_iter):
-      print(f"get a batch, sleep for {sleep_time}")
+      #print(f"get a batch, sleep for {sleep_time}")
       time.sleep(sleep_time)
-      steps += 1
-      if steps >=max_step:
-        print("finished!")
+      sender.update()
+      if sender.current_step >=max_step:
+        heartbeat.JobFinish(
+            training_jobs_pb2.JobFinishRequest(job_name = myname)
+        )
         exit()
-      
-
-          
-
-
   return 0
 
 
