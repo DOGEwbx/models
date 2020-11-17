@@ -347,10 +347,10 @@ def train_and_eval(
   # Unpack datasets and builders based on train/val/test splits
   train_builder, validation_builder = builders  # pylint: disable=unbalanced-tuple-unpacking
   train_dataset, validation_dataset = datasets
-
-  max_step_single_epoch = len(train_dataset)
-  max_step = int(os.getenv("BATCH_NUM"))
   num_gpu = int(len(os.getenv("GPU_ID").split(',')))
+  max_step_single_epoch = int(5004/num_gpu) # temporary solution, fixed if batchsize and dataset doesn't change
+  max_step = int(os.getenv("BATCH_NUM"))
+  
 
   scheduler = grpc.insecure_channel(os.getenv("SCHD_IP") + 
                 ':' + os.getenv("SCHD_HB_PORT"))
