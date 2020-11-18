@@ -46,4 +46,5 @@ message JobStatusReply {
 service JobStatusHandler {
   rpc JobStart(JobStartRequest) returns (JobStatusReply) {};
   rpc NewEpoch(NewEpochRequest) returns (JobStatusReply) {};
+  rpc JobFinish(JobFinishRequest) returns (JobStatusReply) {};
 }
