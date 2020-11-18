@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x13training_jobs.proto\x12\x04\x64\x61re\";\n\x13JobHeartbeatRequest\x12\x10\n\x08job_name\x18\x01 \x01(\t\x12\x12\n\nbatch_time\x18\x02 \x01(\x01\"$\n\x10JobFinishRequest\x12\x10\n\x08job_name\x18\x01 \x01(\t\"\x1f\n\x0eHeartbeatReply\x12\r\n\x05reply\x18\x01 \x01(\t\"\xce\x01\n\x0fJobStartRequest\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0f\n\x07\x64\x61taset\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x13\n\x0bnum_workers\x18\x04 \x01(\x05\x12\x1b\n\x13num_gpus_per_worker\x18\x05 \x01(\x05\x12\x0e\n\x06job_ip\x18\x06 \x01(\t\x12\x14\n\x0c\x64\x61taset_path\x18\x07 \x01(\t\x12\x18\n\x10steps_curr_epoch\x18\x08 \x01(\x03\x12\x1b\n\x13steps_future_epochs\x18\t \x01(\x03\"V\n\x0fNewEpochRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x18\n\x10steps_curr_epoch\x18\x02 \x01(\x03\x12\x1b\n\x13steps_future_epochs\x18\x03 \x01(\x03\"\x1f\n\x0eJobStatusReply\x12\r\n\x05reply\x18\x01 \x01(\t2\x8b\x01\n\x0cJobHeartbeat\x12>\n\tHeartbeat\x12\x19.dare.JobHeartbeatRequest\x1a\x14.dare.HeartbeatReply\"\x00\x12;\n\tJobFinish\x12\x16.dare.JobFinishRequest\x1a\x14.dare.HeartbeatReply\"\x00\x32\x88\x01\n\x10JobStatusHandler\x12\x39\n\x08JobStart\x12\x15.dare.JobStartRequest\x1a\x14.dare.JobStatusReply\"\x00\x12\x39\n\x08NewEpoch\x12\x15.dare.NewEpochRequest\x1a\x14.dare.JobStatusReply\"\x00\x62\x06proto3'
+  serialized_pb=b'\n\x13training_jobs.proto\x12\x04\x64\x61re\";\n\x13JobHeartbeatRequest\x12\x10\n\x08job_name\x18\x01 \x01(\t\x12\x12\n\nbatch_time\x18\x02 \x01(\x01\"$\n\x10JobFinishRequest\x12\x10\n\x08job_name\x18\x01 \x01(\t\"\x1f\n\x0eHeartbeatReply\x12\r\n\x05reply\x18\x01 \x01(\t\"\xce\x01\n\x0fJobStartRequest\x12\r\n\x05model\x18\x01 \x01(\t\x12\x0f\n\x07\x64\x61taset\x18\x02 \x01(\t\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x13\n\x0bnum_workers\x18\x04 \x01(\x05\x12\x1b\n\x13num_gpus_per_worker\x18\x05 \x01(\x05\x12\x0e\n\x06job_ip\x18\x06 \x01(\t\x12\x14\n\x0c\x64\x61taset_path\x18\x07 \x01(\t\x12\x18\n\x10steps_curr_epoch\x18\x08 \x01(\x03\x12\x1b\n\x13steps_future_epochs\x18\t \x01(\x03\"V\n\x0fNewEpochRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x18\n\x10steps_curr_epoch\x18\x02 \x01(\x03\x12\x1b\n\x13steps_future_epochs\x18\x03 \x01(\x03\"\x1f\n\x0eJobStatusReply\x12\r\n\x05reply\x18\x01 \x01(\t2\x8b\x01\n\x0cJobHeartbeat\x12>\n\tHeartbeat\x12\x19.dare.JobHeartbeatRequest\x1a\x14.dare.HeartbeatReply\"\x00\x12;\n\tJobFinish\x12\x16.dare.JobFinishRequest\x1a\x14.dare.HeartbeatReply\"\x00\x32\xc5\x01\n\x10JobStatusHandler\x12\x39\n\x08JobStart\x12\x15.dare.JobStartRequest\x1a\x14.dare.JobStatusReply\"\x00\x12\x39\n\x08NewEpoch\x12\x15.dare.NewEpochRequest\x1a\x14.dare.JobStatusReply\"\x00\x12;\n\tJobFinish\x12\x16.dare.JobFinishRequest\x1a\x14.dare.JobStatusReply\"\x00\x62\x06proto3'
 )
 
 
@@ -389,7 +389,7 @@ _JOBSTATUSHANDLER = _descriptor.ServiceDescriptor(
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
   serialized_start=634,
-  serialized_end=770,
+  serialized_end=831,
   methods=[
   _descriptor.MethodDescriptor(
     name='JobStart',
@@ -407,6 +407,16 @@ _JOBSTATUSHANDLER = _descriptor.ServiceDescriptor(
     index=1,
     containing_service=None,
     input_type=_NEWEPOCHREQUEST,
+    output_type=_JOBSTATUSREPLY,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
+    name='JobFinish',
+    full_name='dare.JobStatusHandler.JobFinish',
+    index=2,
+    containing_service=None,
+    input_type=_JOBFINISHREQUEST,
     output_type=_JOBSTATUSREPLY,
     serialized_options=None,
     create_key=_descriptor._internal_create_key,

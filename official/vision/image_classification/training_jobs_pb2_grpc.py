@@ -119,6 +119,11 @@ class JobStatusHandlerStub(object):
                 request_serializer=training__jobs__pb2.NewEpochRequest.SerializeToString,
                 response_deserializer=training__jobs__pb2.JobStatusReply.FromString,
                 )
+        self.JobFinish = channel.unary_unary(
+                '/dare.JobStatusHandler/JobFinish',
+                request_serializer=training__jobs__pb2.JobFinishRequest.SerializeToString,
+                response_deserializer=training__jobs__pb2.JobStatusReply.FromString,
+                )
 
 
 class JobStatusHandlerServicer(object):
@@ -137,6 +142,12 @@ class JobStatusHandlerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def JobFinish(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_JobStatusHandlerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -148,6 +159,11 @@ def add_JobStatusHandlerServicer_to_server(servicer, server):
             'NewEpoch': grpc.unary_unary_rpc_method_handler(
                     servicer.NewEpoch,
                     request_deserializer=training__jobs__pb2.NewEpochRequest.FromString,
+                    response_serializer=training__jobs__pb2.JobStatusReply.SerializeToString,
+            ),
+            'JobFinish': grpc.unary_unary_rpc_method_handler(
+                    servicer.JobFinish,
+                    request_deserializer=training__jobs__pb2.JobFinishRequest.FromString,
                     response_serializer=training__jobs__pb2.JobStatusReply.SerializeToString,
             ),
     }
@@ -191,6 +207,23 @@ class JobStatusHandler(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/dare.JobStatusHandler/NewEpoch',
             training__jobs__pb2.NewEpochRequest.SerializeToString,
+            training__jobs__pb2.JobStatusReply.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def JobFinish(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/dare.JobStatusHandler/JobFinish',
+            training__jobs__pb2.JobFinishRequest.SerializeToString,
             training__jobs__pb2.JobStatusReply.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
