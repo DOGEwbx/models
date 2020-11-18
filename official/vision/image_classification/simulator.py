@@ -320,7 +320,30 @@ def train_and_eval(
     strategy_override: tf.distribute.Strategy) -> Mapping[str, Any]:
   """Runs the train and eval path using compile/fit."""
   logging.info('Running train and eval.')
-  
+  num_gpu = int(len(os.getenv("GPU_ID").split(',')))
+  global_bs = int(os.getenv("BATCH_SIZE"))*num_gpu
+  max_step_single_epoch = int(1281161/global_bs) # Total samples in imagenet divided by global batch size 
+  max_step = int(os.getenv("BATCH_NUM"))
+  scheduler = grpc.insecure_channel(os.getenv("SCHD_IP") + 
+                ':' + os.getenv("SCHD_HB_PORT"))
+  allocator = grpc.insecure_channel(os.getenv("ALLOCATOR_IP") +
+                ":" + os.getenv("ALLOCATOR_PORT"))
+  heartbeat = training_jobs_pb2_grpc.JobHeartbeatStub(scheduler)
+  jobstatus = training_jobs_pb2_grpc.JobStatusHandlerStub(allocator)
+  jobstatus.JobStart(
+      training_jobs_pb2.JobStartRequest(
+          model = os.getenv("MODEL"),
+          dataset = os.getenv("DATASET"),
+          name = os.getenv("JOB_NAME"),
+          num_workers = 1,
+          num_gpus_per_worker = num_gpu,
+          job_ip = os.getenv("CONTAINER_IP")+':'+ os.getenv("ALLUXIO_FUSE_PORT"),
+          dataset_path = os.getenv("ALLUXIO_DATA_PATH"),
+          steps_curr_epoch = min(max_step_single_epoch,max_step),
+          steps_future_epochs = max_step,
+      )
+  )# job start grpc
+
   distribution_utils.configure_cluster(
       params.runtime.worker_hosts,
       params.runtime.task_index)
@@ -347,32 +370,7 @@ def train_and_eval(
   # Unpack datasets and builders based on train/val/test splits
   train_builder, validation_builder = builders  # pylint: disable=unbalanced-tuple-unpacking
   train_dataset, validation_dataset = datasets
-  num_gpu = int(len(os.getenv("GPU_ID").split(',')))
-  max_step_single_epoch = int(5004/num_gpu) # temporary solution, fixed if batchsize and dataset doesn't change
-  max_step = int(os.getenv("BATCH_NUM"))
   
-
-  scheduler = grpc.insecure_channel(os.getenv("SCHD_IP") + 
-                ':' + os.getenv("SCHD_HB_PORT"))
-  allocator = grpc.insecure_channel(os.getenv("ALLOCATOR_IP") +
-                ":" + os.getenv("ALLOCATOR_PORT"))
-  heartbeat = training_jobs_pb2_grpc.JobHeartbeatStub(scheduler)
-  jobstatus = training_jobs_pb2_grpc.JobStatusHandlerStub(allocator)
-  jobstatus.JobStart(
-      training_jobs_pb2.JobStartRequest(
-          model = os.getenv("MODEL"),
-          dataset = os.getenv("DATASET"),
-          name = os.getenv("JOB_NAME"),
-          num_workers = 1,
-          num_gpus_per_worker = num_gpu,
-          job_ip = os.getenv("CONTAINER_IP"),
-          dataset_path = os.getenv("ALLUXIO_DATA_PATH"),
-          steps_curr_epoch = min(max_step_single_epoch,max_step),
-          steps_future_epochs = max_step,
-      )
-  )# job start grpc
-
-
   train_epochs = params.train.epochs
   train_steps = params.train.steps or train_builder.num_steps
   validation_steps = params.evaluation.steps or validation_builder.num_steps
@@ -437,7 +435,7 @@ def train_and_eval(
     }
   sleep_time = float(os.getenv("SLEEP_TIME"))
   myname = os.getenv("JOB_NAME")
-  sender = HeartBeatSender(256*num_gpu,stub = heartbeat, name = myname, max_step = 60/sleep_time + 1)
+  sender = HeartBeatSender(train_builder.global_batch_size, stub = heartbeat, name = myname, max_step = 60/sleep_time + 1)
   while True:
     ds_iter = iter(train_dataset)
     jobstatus.NewEpoch(training_jobs_pb2.NewEpochRequest(
@@ -454,7 +452,10 @@ def train_and_eval(
         heartbeat.JobFinish(
             training_jobs_pb2.JobFinishRequest(job_name = myname)
         )
-        exit()
+        jobstatus.JobFinish(
+            training_jobs_pb2.JobFinishRequest(job_name = myname)
+        )
+        
   return 0
 
 
