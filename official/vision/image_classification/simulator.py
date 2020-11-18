@@ -440,8 +440,8 @@ def train_and_eval(
     ds_iter = iter(train_dataset)
     jobstatus.NewEpoch(training_jobs_pb2.NewEpochRequest(
         name = myname,
-        steps_curr_epoch = min(max_step_single_epoch, max_step - steps),
-        steps_future_epochs = max_step - steps, 
+        steps_curr_epoch = min(max_step_single_epoch, max_step - sender.current_step),
+        steps_future_epochs = max_step - sender.current_step 
         )
       )
     for i, _ in enumerate(ds_iter):
