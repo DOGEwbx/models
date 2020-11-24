@@ -13,7 +13,8 @@ export SCHD_IP=10.151.40.8
 export SCHD_HB_PORT=12345
 export ALLOCATOR_IP=10.151.40.8
 export ALLOCATOR_PORT=12346
-export ALLUXIO_FUSE_PORT=11111
+export ALLUXIO_FUSE_PORT=54321
+export ALLUXIO_DATA_PATH=/tensorflow_datasets/imagenet2012/5.0.0
 # export SCHD_HB_ENABLED=ok
 # export ALLOCATOR_ENABLED=ok
 

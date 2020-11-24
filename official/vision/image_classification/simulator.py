@@ -47,24 +47,28 @@ class HeartBeatSender(object):
         self.batchsize=batchsize
         self.name = name
         self.current_step = 0
+        self.current_epoch_step = 0
         self.last_step = 0
         self.last_time = time.time()
         self.max_interval = max_interval
         self.max_step = max_step
         self.stub = stub
 
-    def update(self):
+    def update_step(self):
         self.current_step += 1
         interval = time.time() - self.last_time
         steps = self.current_step - self.last_step
         if interval > self.max_interval or steps >= self.max_step:
             if self.stub:
+              print("Contacting scheduler for Heartbeat RPC")
               self.stub.Heartbeat(
                   training_jobs_pb2.JobHeartbeatRequest(job_name = self.name, batch_time = interval/steps)
               )
             self.last_step = self.current_step
             self.last_time += interval
 
+    def update_epoch(self):
+      self.current_epoch_step = 0
 
 
 
@@ -325,6 +329,7 @@ def train_and_eval(
   global_bs = int(os.getenv("BATCH_SIZE"))*num_gpu
   max_step_single_epoch = int(1281161/global_bs) # Total samples in imagenet divided by global batch size 
   max_step = int(os.getenv("BATCH_NUM"))
+  steps_first_epoch = min(max_step_single_epoch, max_step)
   heartbeat, jobstatus = None, None
   if os.getenv("SCHD_HB_ENABLED"):
     scheduler = grpc.insecure_channel(os.getenv("SCHD_IP") + 
@@ -335,6 +340,7 @@ def train_and_eval(
                   ":" + os.getenv("ALLOCATOR_PORT"))
     jobstatus = training_jobs_pb2_grpc.JobStatusHandlerStub(allocator)
   if jobstatus:
+    print("Contacting allocator for JobStart RPC")
     jobstatus.JobStart(
         training_jobs_pb2.JobStartRequest(
             model = os.getenv("MODEL"),
@@ -344,8 +350,8 @@ def train_and_eval(
             num_gpus_per_worker = num_gpu,
             job_ip = os.getenv("CONTAINER_IP")+':'+ os.getenv("ALLUXIO_FUSE_PORT"),
             dataset_path = os.getenv("ALLUXIO_DATA_PATH"),
-            steps_curr_epoch = min(max_step_single_epoch,max_step),
-            steps_future_epochs = max_step,
+            steps_curr_epoch = steps_first_epoch,
+            steps_future_epochs = max_step-steps_first_epoch,
         )
     )# job start grpc
 
@@ -443,8 +449,11 @@ def train_and_eval(
   sender = HeartBeatSender(train_builder.global_batch_size, stub = heartbeat, name = myname, max_step = 60/sleep_time + 1)
   first_epoch = True
   while True:
+    sender.update_epoch()
     ds_iter = iter(train_dataset)
     if jobstatus and not first_epoch:
+      print("Contacting allocator for NewEpoch RPC")
+      steps_curr_epoch = 
       jobstatus.NewEpoch(training_jobs_pb2.NewEpochRequest(
           name = myname,
           steps_curr_epoch = min(max_step_single_epoch, max_step - sender.current_step),
@@ -455,13 +464,15 @@ def train_and_eval(
     for i, _ in enumerate(ds_iter):
       print(f"get a batch, sleep for {sleep_time}")
       time.sleep(sleep_time)
-      sender.update()
+      sender.update_step()
       if sender.current_step >= max_step:
         if heartbeat:
+          print("Contacting scheduler for JobFinish RPC")
           heartbeat.JobFinish(
               training_jobs_pb2.JobFinishRequest(job_name = myname)
           )
         if jobstatus:
+          print("Contacting allocator for JobFinish RPC")
           jobstatus.JobFinish(
               training_jobs_pb2.JobFinishRequest(job_name = myname)
           )
