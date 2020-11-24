@@ -43,32 +43,40 @@ from official.vision.image_classification.resnet import common
 from official.vision.image_classification.resnet import resnet_model
 
 class HeartBeatSender(object):
-    def __init__(self, batchsize, stub, name, max_interval = 60, max_step = 10):
+    def __init__(self, batchsize, schd_stub, alloc_stub, name, steps_single_epoch, total_steps, max_interval = 60, max_step = 10):
         self.batchsize=batchsize
         self.name = name
         self.current_step = 0
-        self.current_epoch_step = 0
+        self.steps_single_epoch = steps_single_epoch
+        self.total_steps = total_steps
         self.last_step = 0
         self.last_time = time.time()
         self.max_interval = max_interval
         self.max_step = max_step
-        self.stub = stub
+        self.schd_stub = schd_stub
+        self.alloc_stub = alloc_stub
 
     def update_step(self):
         self.current_step += 1
         interval = time.time() - self.last_time
         steps = self.current_step - self.last_step
         if interval > self.max_interval or steps >= self.max_step:
-            if self.stub:
+            if self.schd_stub:
               print("Contacting scheduler for Heartbeat RPC")
-              self.stub.Heartbeat(
+              self.schd_stub.Heartbeat(
                   training_jobs_pb2.JobHeartbeatRequest(job_name = self.name, batch_time = interval/steps)
+              )
+            if self.alloc_stub:
+              print("Contacting allocator for StepUpdate RPC")
+              steps_curr_epoch = self.steps_single_epoch - self.current_step % self.steps_single_epoch
+              self.alloc_stub.StepUpdate(
+                training_jobs_pb2.StepUpdateRequest(
+                  name=self.name,
+                  steps_curr_epoch=steps_curr_epoch,
+                  steps_future_epochs=self.total_steps-self.current_step-steps_curr_epoch)
               )
             self.last_step = self.current_step
             self.last_time += interval
-
-    def update_epoch(self):
-      self.current_epoch_step = 0
 
 
 
@@ -329,7 +337,7 @@ def train_and_eval(
   global_bs = int(os.getenv("BATCH_SIZE"))*num_gpu
   max_step_single_epoch = int(1281161/global_bs) # Total samples in imagenet divided by global batch size 
   max_step = int(os.getenv("BATCH_NUM"))
-  steps_first_epoch = min(max_step_single_epoch, max_step)
+  step_single_epoch = min(max_step_single_epoch, max_step)
   heartbeat, jobstatus = None, None
   if os.getenv("SCHD_HB_ENABLED"):
     scheduler = grpc.insecure_channel(os.getenv("SCHD_IP") + 
@@ -350,8 +358,8 @@ def train_and_eval(
             num_gpus_per_worker = num_gpu,
             job_ip = os.getenv("CONTAINER_IP")+':'+ os.getenv("ALLUXIO_FUSE_PORT"),
             dataset_path = os.getenv("ALLUXIO_DATA_PATH"),
-            steps_curr_epoch = steps_first_epoch,
-            steps_future_epochs = max_step-steps_first_epoch,
+            steps_curr_epoch = step_single_epoch,
+            steps_future_epochs = max_step-step_single_epoch,
         )
     )# job start grpc
 
@@ -446,18 +454,18 @@ def train_and_eval(
     }
   sleep_time = float(os.getenv("SLEEP_TIME"))
   myname = os.getenv("JOB_NAME")
-  sender = HeartBeatSender(train_builder.global_batch_size, stub = heartbeat, name = myname, max_step = 60/sleep_time + 1)
+  sender = HeartBeatSender(train_builder.global_batch_size, schd_stub = heartbeat, alloc_stub = jobstatus, name = myname, step_single_epoch = step_single_epoch, total_steps = max_step, max_step = 60/sleep_time + 1)
   first_epoch = True
   while True:
     sender.update_epoch()
     ds_iter = iter(train_dataset)
     if jobstatus and not first_epoch:
       print("Contacting allocator for NewEpoch RPC")
-      steps_curr_epoch = 
+      steps_curr_epoch = min(max_step_single_epoch, max_step - sender.current_step)
       jobstatus.NewEpoch(training_jobs_pb2.NewEpochRequest(
           name = myname,
-          steps_curr_epoch = min(max_step_single_epoch, max_step - sender.current_step),
-          steps_future_epochs = max_step - sender.current_step 
+          steps_curr_epoch = steps_curr_epoch,
+          steps_future_epochs = max_step - sender.current_step - steps_curr_epoch 
           )
         )
       first_epoch = False

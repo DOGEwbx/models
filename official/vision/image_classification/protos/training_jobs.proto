@@ -32,6 +32,12 @@ message JobStartRequest {
   int64 steps_future_epochs = 9;
 }
 
+message StepUpdateRequest {
+  string name = 1;
+  int64 steps_curr_epoch = 2;
+  int64 steps_future_epochs = 3;
+}
+
 message NewEpochRequest {
   string name = 1;
   int64 steps_curr_epoch = 2;
@@ -45,6 +51,7 @@ message JobStatusReply {
 // This service runs on DARE allocator and is called by training jobs
 service JobStatusHandler {
   rpc JobStart(JobStartRequest) returns (JobStatusReply) {};
+  rpc StepUpdate(StepUpdateRequest) returns (JobStatusReply) {};
   rpc NewEpoch(NewEpochRequest) returns (JobStatusReply) {};
   rpc JobFinish(JobFinishRequest) returns (JobStatusReply) {};
 }
