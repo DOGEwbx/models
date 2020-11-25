@@ -55,18 +55,19 @@ class HeartBeatSender(object):
         self.max_step = max_step
         self.schd_stub = schd_stub
         self.alloc_stub = alloc_stub
+        self.finished = False
 
     def update_step(self):
         self.current_step += 1
         interval = time.time() - self.last_time
         steps = self.current_step - self.last_step
         if interval > self.max_interval or steps >= self.max_step:
-            if self.schd_stub:
+            if self.schd_stub and not self.finished:
               print("Contacting scheduler for Heartbeat RPC")
               self.schd_stub.Heartbeat(
                   training_jobs_pb2.JobHeartbeatRequest(job_name = self.name, batch_time = interval/steps)
               )
-            if self.alloc_stub:
+            if self.alloc_stub and not self.finished:
               print("Contacting allocator for StepUpdate RPC")
               steps_curr_epoch = self.steps_single_epoch - self.current_step % self.steps_single_epoch
               self.alloc_stub.StepUpdate(
@@ -454,10 +455,9 @@ def train_and_eval(
     }
   sleep_time = float(os.getenv("SLEEP_TIME"))
   myname = os.getenv("JOB_NAME")
-  sender = HeartBeatSender(train_builder.global_batch_size, schd_stub = heartbeat, alloc_stub = jobstatus, name = myname, step_single_epoch = step_single_epoch, total_steps = max_step, max_step = 60/sleep_time + 1)
+  sender = HeartBeatSender(train_builder.global_batch_size, schd_stub = heartbeat, alloc_stub = jobstatus, name = myname, steps_single_epoch = step_single_epoch, total_steps = max_step, max_step = 60/sleep_time + 1)
   first_epoch = True
   while True:
-    sender.update_epoch()
     ds_iter = iter(train_dataset)
     if jobstatus and not first_epoch:
       print("Contacting allocator for NewEpoch RPC")
@@ -474,18 +474,19 @@ def train_and_eval(
       time.sleep(sleep_time)
       sender.update_step()
       if sender.current_step >= max_step:
-        if heartbeat:
-          print("Contacting scheduler for JobFinish RPC")
-          heartbeat.JobFinish(
-              training_jobs_pb2.JobFinishRequest(job_name = myname)
-          )
         if jobstatus:
           print("Contacting allocator for JobFinish RPC")
           jobstatus.JobFinish(
               training_jobs_pb2.JobFinishRequest(job_name = myname)
           )
+        if heartbeat:
+          print("Contacting scheduler for JobFinish RPC")
+          heartbeat.JobFinish(
+              training_jobs_pb2.JobFinishRequest(job_name = myname)
+          )
         # job finish rpc only needs to be called once
         heartbeat, jobstatus = None, None
+        sender.finished = True
         
   return 0
 
