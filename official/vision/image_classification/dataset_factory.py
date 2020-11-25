@@ -167,7 +167,7 @@ class DatasetBuilder:
   def __init__(self, config: DatasetConfig, **overrides: Any):
     """Initialize the builder from the config."""
     self.config = config.replace(**overrides)
-    self.config.batch_size = int(os.getenv("BATCH_SIZE"))
+    self.config.batch_size = int(os.getenv("BATCH_SIZE")) * len(os.getenv("GPU_ID").split(','))
     self.builder_info = None
 
     if self.config.augmenter is not None:
