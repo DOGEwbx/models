@@ -340,8 +340,8 @@ class DatasetBuilder:
       decoders['image'] = tfds.decode.SkipDecoding()
 
     read_config = tfds.ReadConfig(
-        interleave_cycle_length=10,
-        interleave_block_length=1,
+        #interleave_cycle_length=10,
+        #interleave_block_length=1,
         input_context=self.input_context)
 
     dataset = builder.as_dataset(
