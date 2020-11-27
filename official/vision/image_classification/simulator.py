@@ -69,7 +69,8 @@ class HeartBeatSender(object):
               )
             if self.alloc_stub and not self.finished:
               print("Contacting allocator for StepUpdate RPC")
-              steps_curr_epoch = self.steps_single_epoch - self.current_step % self.steps_single_epoch
+              total_steps_curr_epoch = min(self.steps_single_epoch, self.total_steps - self.current_step // self.steps_single_epoch * self.steps_single_epoch)
+              steps_curr_epoch = total_steps_curr_epoch - self.current_step % self.steps_single_epoch
               self.alloc_stub.StepUpdate(
                 training_jobs_pb2.StepUpdateRequest(
                   name=self.name,
@@ -468,7 +469,7 @@ def train_and_eval(
           steps_future_epochs = max_step - sender.current_step - steps_curr_epoch 
           )
         )
-      first_epoch = False
+    first_epoch = False
     for i, _ in enumerate(ds_iter):
       print(f"get a batch, sleep for {sleep_time}")
       time.sleep(sleep_time)
