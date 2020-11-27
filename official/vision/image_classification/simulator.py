@@ -457,6 +457,7 @@ def train_and_eval(
   myname = os.getenv("JOB_NAME")
   sender = HeartBeatSender(train_builder.global_batch_size, schd_stub = heartbeat, alloc_stub = jobstatus, name = myname, steps_single_epoch = step_single_epoch, total_steps = max_step, max_step = 60/sleep_time + 1)
   first_epoch = True
+  print(max_step_single_epoch)
   while True:
     ds_iter = iter(train_dataset)
     print("new epoch")
@@ -490,7 +491,7 @@ def train_and_eval(
         # job finish rpc only needs to be called once
         heartbeat, jobstatus = None, None
         sender.finished = True
-      if i+1%max_step_single_epoch == 0:
+      if (i+1)%max_step_single_epoch == 0:
         break
         
   return 0
