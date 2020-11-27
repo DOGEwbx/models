@@ -459,6 +459,7 @@ def train_and_eval(
   first_epoch = True
   while True:
     ds_iter = iter(train_dataset)
+    print("new epoch")
     if jobstatus and not first_epoch:
       print("Contacting allocator for NewEpoch RPC")
       steps_curr_epoch = min(max_step_single_epoch, max_step - sender.current_step)
@@ -489,6 +490,8 @@ def train_and_eval(
         # job finish rpc only needs to be called once
         heartbeat, jobstatus = None, None
         sender.finished = True
+      if i+1%max_step_single_epoch == 0:
+        break
         
   return 0
 
