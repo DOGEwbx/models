@@ -336,7 +336,7 @@ def train_and_eval(
   logging.info('Running train and eval.')
   num_gpu = int(len(os.getenv("GPU_ID").split(',')))
   global_bs = int(os.getenv("BATCH_SIZE"))*num_gpu
-  max_step_single_epoch = int(1281161/global_bs) # Total samples in imagenet divided by global batch size 
+  max_step_single_epoch = int(params.train_dataset.num_examples/global_bs) # Total samples in imagenet divided by global batch size 
   max_step = int(os.getenv("BATCH_NUM"))
   step_single_epoch = min(max_step_single_epoch, max_step)
   heartbeat, jobstatus = None, None
@@ -470,9 +470,11 @@ def train_and_eval(
         )
       first_epoch = False
     for i, _ in enumerate(ds_iter):
-      print(f"get a batch, sleep for {sleep_time}")
+      #print(f"get a batch, sleep for {sleep_time}")
       time.sleep(sleep_time)
       sender.update_step()
+      if sender.current_step%10 == 0:
+        print(sender.current_step)
       if sender.current_step >= max_step:
         if jobstatus:
           print("Contacting allocator for JobFinish RPC")
