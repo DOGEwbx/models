@@ -1,0 +1,51 @@
+# Training configuration for ResNet trained on ImageNet on GPUs.
+# Reaches > 76.1% within 90 epochs.
+# Note: This configuration uses a scaled per-replica batch size based on the number of devices.
+runtime:
+  distribution_strategy: 'mirrored'
+  num_gpus: 1
+  batchnorm_spatial_persistent: True
+train_dataset:
+  name: 'yt8m'
+  data_dir: "/data/yt8m/frame/2"
+  builder: 'records'
+  split: 'train'
+  image_size: null
+  num_classes: null
+  num_examples: null
+  batch_size: 256
+  use_per_replica_batch_size: True
+  dtype: 'float16'
+  mean_subtract: False
+  standardize: False
+validation_dataset:
+  name: 'yt8m'
+  data_dir: null
+  builder: 'tfds'
+  split: 'validation'
+  image_size: null
+  num_classes: null
+  num_examples: null
+  batch_size: 256
+  use_per_replica_batch_size: True
+  dtype: 'float16'
+  mean_subtract: False
+  standardize: False
+model:
+  name: 'resnet'
+  model_params:
+    rescale_inputs: False
+  optimizer:
+    name: 'momentum'
+    momentum: 0.9
+    decay: 0.9
+    epsilon: 0.001
+  learning_rate:
+    name: 'piecewise_constant_with_warmup'
+  loss:
+    label_smoothing: 0.1
+train:
+  resume_checkpoint: True
+  epochs: 90
+evaluation:
+  epochs_between_evals: 1
