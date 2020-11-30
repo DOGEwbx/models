@@ -474,7 +474,7 @@ class DatasetBuilder:
         "id": tf.io.FixedLenFeature([], tf.string),
         "labels": tf.io.VarLenFeature(tf.int64),
         "rgb": tf.io.FixedLenFeature([], tf.float32),
-        "audio": tf.io.FixedLenFeature([], tf.float32),
+        #"audio": tf.io.FixedLenFeature([], tf.float32),
 
     }
     parsed = tf.io.parse_single_example(record, keys_to_features)
