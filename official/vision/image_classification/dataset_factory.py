@@ -363,6 +363,7 @@ class DatasetBuilder:
 
       file_pattern = os.path.join(self.config.data_dir,
                                   '{}*'.format(self.config.split))
+
       dataset = tf.data.Dataset.list_files(file_pattern, shuffle=False)
     else:
       dataset = tf.data.Dataset.from_tensor_slices(self.config.filenames)
@@ -470,7 +471,7 @@ class DatasetBuilder:
 
   def parse_record(self, record: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
     """Parse an ImageNet record from a serialized string Tensor."""
-    keys_to_features = {
+   """ keys_to_features = {
         "id": tf.io.FixedLenFeature([], tf.string),
         "labels": tf.io.VarLenFeature(tf.int64),
         "rgb": tf.io.FixedLenFeature([], tf.float32),
@@ -479,7 +480,20 @@ class DatasetBuilder:
     }
     parsed = tf.io.parse_single_example(record, keys_to_features)
     #label = tf.reshape(parsed['labels'], shape=[3862])
-    return parsed['rgb'], parsed['labels']
+    return parsed['rgb'], parsed['labels']"""
+    context_features = {
+        "id": tf.io.FixedLenFeature([], tf.string),
+        "labels": tf.io.VarLenFeature(tf.int64)
+    }
+    sequence_features = {
+        "rgb": tf.io.FixedLenSequenceFeature([], dtype=tf.string),
+        "audio": tf.io.FixedLenSequenceFeature([], dtype=tf.string),
+    }
+    contexts, features = tf.io.parse_single_sequence_example(
+        serialized_example,
+        context_features=context_features,
+        sequence_features=sequence_features)
+    return contexts["label"], features["rgb"]
 
   def preprocess(self, image: tf.Tensor, label: tf.Tensor
                 ) -> Tuple[tf.Tensor, tf.Tensor]:
