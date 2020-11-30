@@ -471,37 +471,15 @@ class DatasetBuilder:
   def parse_record(self, record: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
     """Parse an ImageNet record from a serialized string Tensor."""
     keys_to_features = {
-        'image/encoded':
-            tf.io.FixedLenFeature((), tf.string, ''),
-        'image/format':
-            tf.io.FixedLenFeature((), tf.string, 'jpeg'),
-        'image/class/label':
-            tf.io.FixedLenFeature([], tf.int64, -1),
-        'image/class/text':
-            tf.io.FixedLenFeature([], tf.string, ''),
-        'image/object/bbox/xmin':
-            tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymin':
-            tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/xmax':
-            tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/bbox/ymax':
-            tf.io.VarLenFeature(dtype=tf.float32),
-        'image/object/class/label':
-            tf.io.VarLenFeature(dtype=tf.int64),
+        "id": tf.io.FixedLenFeature([], tf.string),
+        "labels": tf.io.VarLenFeature(tf.int64),
+        "rgb": tf.FixedLenFeature([1024], tf.float32),
+        "audio": tf.FixedLenFeature([128], tf.float32),
+
     }
-
     parsed = tf.io.parse_single_example(record, keys_to_features)
-
-    label = tf.reshape(parsed['image/class/label'], shape=[1])
-
-    # Subtract one so that labels are in [0, 1000)
-    label -= 1
-
-    image_bytes = tf.reshape(parsed['image/encoded'], shape=[])
-    image, label = self.preprocess(image_bytes, label)
-
-    return image, label
+    label = tf.reshape(parsed['labels'], shape=[3862])
+    return parsed['rgb'], label
 
   def preprocess(self, image: tf.Tensor, label: tf.Tensor
                 ) -> Tuple[tf.Tensor, tf.Tensor]:
