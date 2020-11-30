@@ -473,13 +473,13 @@ class DatasetBuilder:
     keys_to_features = {
         "id": tf.io.FixedLenFeature([], tf.string),
         "labels": tf.io.VarLenFeature(tf.int64),
-        "rgb": tf.FixedLenFeature([1024], tf.float32),
-        "audio": tf.FixedLenFeature([128], tf.float32),
+        "rgb": tf.io.FixedLenFeature([], tf.float32),
+        "audio": tf.io.FixedLenFeature([], tf.float32),
 
     }
     parsed = tf.io.parse_single_example(record, keys_to_features)
-    label = tf.reshape(parsed['labels'], shape=[3862])
-    return parsed['rgb'], label
+    #label = tf.reshape(parsed['labels'], shape=[3862])
+    return parsed['rgb'], parsed['labels']
 
   def preprocess(self, image: tf.Tensor, label: tf.Tensor
                 ) -> Tuple[tf.Tensor, tf.Tensor]:
