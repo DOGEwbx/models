@@ -151,7 +151,7 @@ def _get_dataset_builders(params: base_configs.ExperimentConfig,
   image_size = get_image_size_from_model(params)
 
   dataset_configs = [
-      params.train_dataset, params.validation_dataset
+      params.train_dataset
   ]
   builders = []
 
@@ -166,7 +166,7 @@ def _get_dataset_builders(params: base_configs.ExperimentConfig,
       builder = None
     builders.append(builder)
 
-  return builders
+  return builders[0]
 
 
 def get_loss_scale(params: base_configs.ExperimentConfig,
@@ -202,9 +202,6 @@ def _get_params_from_flags(flags_obj: flags.FlagValues):
           'tpu': flags_obj.tpu,
       },
       'train_dataset': {
-          'data_dir': flags_obj.data_dir,
-      },
-      'validation_dataset': {
           'data_dir': flags_obj.data_dir,
       },
       'train': {
@@ -385,16 +382,16 @@ def train_and_eval(
   one_hot = label_smoothing and label_smoothing > 0
 
   builders = _get_dataset_builders(params, strategy, one_hot)
-  datasets = [builder.build(strategy)
-              if builder else None for builder in builders]
+  datasets = builders.build(strategy)
+              
 
   # Unpack datasets and builders based on train/val/test splits
-  train_builder, validation_builder = builders  # pylint: disable=unbalanced-tuple-unpacking
-  train_dataset, validation_dataset = datasets
+  train_builder = builders  # pylint: disable=unbalanced-tuple-unpacking
+  train_dataset = datasets
   
   train_epochs = params.train.epochs
   train_steps = params.train.steps or train_builder.num_steps
-  validation_steps = params.evaluation.steps or validation_builder.num_steps
+  
 
   initialize(params, train_builder)
 
@@ -446,14 +443,7 @@ def train_and_eval(
 
   serialize_config(params=params, model_dir=params.model_dir)
 
-  if params.evaluation.skip_eval:
-    validation_kwargs = {}
-  else:
-    validation_kwargs = {
-        'validation_data': validation_dataset,
-        'validation_steps': validation_steps,
-        'validation_freq': params.evaluation.epochs_between_evals,
-    }
+ 
   sleep_time = float(os.getenv("SLEEP_TIME"))
   myname = os.getenv("JOB_NAME")
   sender = HeartBeatSender(train_builder.global_batch_size, schd_stub = heartbeat, alloc_stub = jobstatus, name = myname, steps_single_epoch = step_single_epoch, total_steps = max_step, max_step = 60/sleep_time + 1)
